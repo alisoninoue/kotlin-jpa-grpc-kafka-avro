@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "br.com.poc";
+option java_outer_classname = "PersonProto";
+option objc_class_prefix = "HLW";
+
+package br.com.poc;
+
+service Person {
+  rpc CreatePerson (PersonRequest) returns (PersonReply) {}
+  rpc findById (PersonIdRequest) returns (PersonDetails) {}
+}
+
+message PersonRequest {
+  int64 cpf = 1;
+  string name = 2;
+}
+
+message PersonReply {
+  string message = 1;
+}
+
+message PersonIdRequest {
+  int64 cpf = 1;
+}
+
+message PersonDetails {
+  int64 cpf = 1;
+  string name = 2;
+  string genre = 3;
+}

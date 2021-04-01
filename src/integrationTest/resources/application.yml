@@ -1,0 +1,54 @@
+environment: test
+micronaut:
+  application:
+    name: poc
+  metrics:
+    enabled: true
+    export:
+      prometheus:
+        enabled: true
+        step: PT1M
+        descriptions: true
+endpoints:
+  metrics:
+    enabled: true
+    sensitive: false
+  prometheus:
+    sensitive: false
+  health:
+    enabled: true
+    details-visible: anonymous
+tracing:
+  jaeger:
+    enabled: true
+    sampler:
+      probability: 1
+    sender:
+      agent-host: localhost
+      agent-port: 6831
+grpc:
+  server:
+    health:
+      enabled: true
+    port: 50051
+
+datasources:
+  default:
+    url: ${JDBC_URL:`jdbc:h2:mem:default;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE`}
+    username: ${JDBC_USER:sa}
+    password: ${JDBC_PASSWORD:""}
+    driverClassName: ${JDBC_DRIVER:org.h2.Driver}
+jpa:
+  default:
+    properties:
+      hibernate:
+        hbm2ddl:
+          auto: update
+        show_sql: true
+
+# Uncomment to enable service discovery with Consul
+#consul:
+#    client:
+#        registration:
+#            enabled: true
+#        defaultZone: "${CONSUL_HOST:localhost}:${CONSUL_PORT:8500}"

@@ -1,0 +1,185 @@
+plugins {
+    id "org.jetbrains.kotlin.jvm" version "${kotlinVersion}"
+    id "org.jetbrains.kotlin.kapt" version "${kotlinVersion}"
+    id "org.jetbrains.kotlin.plugin.allopen" version "${kotlinVersion}"
+    id "application"
+    id 'com.google.protobuf' version "${protobufVersion}"
+    id "com.github.johnrengelman.shadow" version "6.1.0"
+    id 'jacoco'
+    id 'info.solidsoft.pitest' version '1.6.0'
+    id "com.github.davidmc24.gradle.plugin.avro" version "1.0.0"
+}
+
+version "0.1"
+group "br.com.poc"
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+    maven {
+        url "https://packages.confluent.io/maven/"
+    }
+    maven {
+        url "https://repository.mulesoft.org/nexus/content/repositories/public/"
+    }
+}
+
+configurations {
+    developmentOnly
+}
+
+configurations.all {
+    exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+}
+
+dependencies {
+    kapt(enforcedPlatform("io.micronaut:micronaut-bom:$micronautVersion"))
+    kapt("io.micronaut:micronaut-inject-java:$micronautVersion")
+    kapt("io.micronaut:micronaut-validation")
+    kapt("io.micronaut.data:micronaut-data-processor")
+    kaptTest("io.micronaut:micronaut-inject-java")
+
+    // Avro - Confluent
+    compile("org.apache.avro:avro:1.10.2")
+    compile("io.confluent:kafka-avro-serializer:$confluentVersion")
+    compile("io.confluent:kafka-schema-registry:$confluentVersion")
+    compile("io.confluent:kafka-schema-registry-client:$confluentVersion")
+
+    implementation(enforcedPlatform("io.micronaut:micronaut-bom:$micronautVersion"))
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:${kotlinVersion}")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion")
+    implementation("io.micronaut:micronaut-runtime")
+    implementation("io.micronaut.grpc:micronaut-grpc-server-runtime:$micronautGrpcVersion")
+    implementation("io.micronaut.grpc:micronaut-grpc-client-runtime:$micronautGrpcVersion")
+    implementation("io.micronaut:micronaut-management")
+    implementation("io.micronaut:micronaut-http-server-netty")
+    implementation("io.micronaut.micrometer:micronaut-micrometer-registry-prometheus")
+    implementation("io.micronaut.sql:micronaut-jdbc-hikari")
+    implementation("io.micronaut.sql:micronaut-hibernate-jpa")
+    implementation("io.micronaut.data:micronaut-data-hibernate-jpa")
+    implementation("io.micronaut.kafka:micronaut-kafka")
+
+    implementation("org.postgresql:postgresql:$postgresVersion")
+    implementation("io.grpc:grpc-kotlin-stub:${grpcKotlinVersion}")
+
+    runtimeOnly("com.h2database:h2")
+    runtimeOnly("ch.qos.logback:logback-classic:1.2.3")
+    runtimeOnly("com.fasterxml.jackson.module:jackson-module-kotlin:2.12.2")
+
+    // Tracing
+    implementation("io.micronaut:micronaut-tracing")
+    implementation("io.jaegertracing:jaeger-thrift:1.5.0")
+    runtime("io.opentracing.contrib:opentracing-kafka-client:0.1.15")
+
+    // Testing
+    testImplementation enforcedPlatform("io.micronaut:micronaut-bom:$micronautVersion")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:$junit5Version")
+    testImplementation("org.junit.platform:junit-platform-runner:$junitPlatformVersion")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junit5Version")
+    testImplementation("io.micronaut.test:micronaut-test-junit5")
+    testImplementation("io.mockk:mockk:$mockkVersion")
+    testCompile("com.willowtreeapps.assertk:assertk-jvm:0.23.1")
+    testRuntime("org.jetbrains.spek:spek-junit-platform-engine:1.1.5")
+    pitest 'org.pitest:pitest-junit5-plugin:0.14'
+
+}
+
+test.classpath += configurations.developmentOnly
+
+mainClassName = "br.com.poc.Application"
+
+allOpen {
+    annotation("io.micronaut.aop.Around")
+}
+
+compileKotlin {
+    kotlinOptions {
+        jvmTarget = '11'
+        //Will retain parameter names for Java reflection
+        javaParameters = true
+    }
+}
+
+tasks.withType(JavaExec) {
+    classpath += configurations.developmentOnly
+    jvmArgs('-XX:TieredStopAtLevel=1', '-Dcom.sun.management.jmxremote')
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs 'build/generated/source/proto/main/grpc'
+            srcDirs 'build/generated/source/proto/main/grpckt'
+            srcDirs 'build/generated/source/proto/main/java'
+        }
+    }
+}
+
+apply from: "$rootDir/integration-test.gradle"
+
+tasks {
+    protobuf {
+        protoc { artifact = "com.google.protobuf:protoc:${protocVersion}" }
+        plugins {
+            grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
+            grpckt { artifact = "io.grpc:protoc-gen-grpc-kotlin:${grpcKotlinVersion}:jdk7@jar" }
+        }
+        generateProtoTasks {
+            all()*.plugins {
+                grpc {}
+                grpckt {}
+            }
+        }
+    }
+
+    shadowJar {
+        mergeServiceFiles()
+    }
+
+    jacocoTestReport {
+        sourceSets sourceSets.main    // important!
+        executionData fileTree(project.rootDir.absolutePath).include("**/build/jacoco/*.exec")
+    }
+
+    jacocoTestCoverageVerification {
+        violationRules {
+            rule {
+                limit {
+                    minimum = 0.5
+                }
+            }
+
+            rule {
+                enabled = false
+                element = 'CLASS'
+                includes = ['org.gradle.*']
+
+                limit {
+                    counter = 'LINE'
+                    value = 'TOTALCOUNT'
+                    maximum = 0.3
+                }
+            }
+        }
+    }
+
+    test {
+        useJUnitPlatform()
+        finalizedBy jacocoTestReport
+    }
+
+    tasks.withType(Test) {
+        finalizedBy jacocoTestReport
+    }
+
+    pitest {
+        outputFormats.set(['XML', 'HTML'])
+        testPlugin.set("junit5")
+        mainSourceSets.set([sourceSets.main])
+        testSourceSets.set([sourceSets.test])
+    }
+//    check.dependsOn "pitest"
+}
+

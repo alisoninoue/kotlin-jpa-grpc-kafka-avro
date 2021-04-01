@@ -1,0 +1,9 @@
+{"namespace": "br.com.poc",
+  "type": "record",
+  "name": "PersonCreated",
+  "fields": [
+    {"name": "cpf", "type": "long"},
+    {"name": "name",  "type": ["string", "null"]},
+    {"name": "genre", "type": ["string", "null"], "default": "null"}
+  ]
+}

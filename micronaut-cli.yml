@@ -1,0 +1,5 @@
+profile: service
+defaultPackage: kotlin-jpa-grpc-kafka-avro
+---
+testFramework: spek
+sourceLanguage: kotlin
