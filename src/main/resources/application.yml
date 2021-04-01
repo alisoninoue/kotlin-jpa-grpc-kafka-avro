@@ -51,8 +51,8 @@ jpa:
 
 kafka:
   bootstrap:
-    servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-  schema.registry.url: ${KAFKA_SCHEMA_REGISTRY:http://localhost:8081}
+    servers: ${KAFKA_BOOTSTRAP_SERVERS:`localhost:9092`}
+  schema.registry.url: ${KAFKA_SCHEMA_REGISTRY:`http://localhost:8081`}
   consumers:
     default:
       specific.avro.reader: true
